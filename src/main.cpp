@@ -10,6 +10,7 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(DEFAULT_BAUD_RATE);
   mpuSensor.initialize();
+  mpuSensor.calibrate();
 }
 
 void loop() {
@@ -17,11 +18,7 @@ void loop() {
   mpuSensor.updateOrientation();
   Mpu6050GyroData orientation = mpuSensor.getOrientation();
 
-  Serial.print("Rotation X: ");
-  Serial.print(orientation.x);
-  Serial.print(", Y: ");
-  Serial.print(orientation.y);
-  Serial.print(", Z: ");
-  Serial.print(orientation.z);
-  Serial.println(" deg");
+  Serial.println(orientation.toString());
+
+  delay(100);
 }

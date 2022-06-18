@@ -1,13 +1,13 @@
 #include "Mpu6050/Mpu6050Sensor.h"
 
-Mpu6050Sensor::Mpu6050Sensor() : wire(0), orientation({0,0,0}), lastMillis(-1) {}
+Mpu6050Sensor::Mpu6050Sensor() : wire(0), orientation({0,0,0}), velocityDrift({0,0,0}), lastMillis(-1) {}
 Mpu6050Sensor::~Mpu6050Sensor() {}
 
 void Mpu6050Sensor::initialize() {
-    // if (!this->wire.setPins(GPIO_PIN_GY521_SDA, GPIO_PIN_GY521_SCL))
-    //     Serial.println("Failed to set GPIO pins for MPU6050");
+    if (!this->wire.begin(GPIO_PIN_GY521_SDA, GPIO_PIN_GY521_SCL))
+        Serial.println("Failed to set GPIO pins for MPU6050");
 
-    if (!this->mpu.begin())
+    if (!this->mpu.begin(MPU6050_I2CADDR_DEFAULT, &this->wire))
         Serial.println("Failed to initialize MPU6050");
 }
 
@@ -36,7 +36,8 @@ void Mpu6050Sensor::updateOrientation() {
 
     unsigned long deltaMs = ms - this->lastMillis;
     Mpu6050GyroData velocity = this->readCurrentVelocity();
-    Mpu6050GyroData deltaDeg = velocity * RAD_TO_DEG / 1000 * deltaMs;
+    Mpu6050GyroData degVelocity = velocity * RAD_TO_DEG - this->velocityDrift;
+    Mpu6050GyroData deltaDeg = degVelocity / 1000 * deltaMs;
     this->orientation = this->orientation + deltaDeg;
     this->normalizeOrientation();
     this->lastMillis = ms;
@@ -52,5 +53,13 @@ void Mpu6050Sensor::normalizeOrientation() {
 
         while (pOrientation[i] >= 360.0f)
             pOrientation[i] -= 360.0f;
+    }
+}
+
+void Mpu6050Sensor::calibrate() {
+    for (int i = 0; i < NECESSARY_CALIBRATIONS; i++) {
+        Mpu6050GyroData velocity = this->readCurrentVelocity() * RAD_TO_DEG;
+        this->velocityDrift = (this->velocityDrift + velocity) / 2.0f;
+        delay(10);
     }
 }

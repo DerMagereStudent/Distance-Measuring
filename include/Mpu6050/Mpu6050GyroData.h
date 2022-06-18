@@ -35,6 +35,18 @@ struct Mpu6050GyroData {
             this->z / divisor,
         };
     }
+
+// Serial.print("Rotation X: ");
+  // Serial.print(orientation.x);
+  // Serial.print(", Y: ");
+  // Serial.print(orientation.y);
+  // Serial.print(", Z: ");
+  // Serial.print(orientation.z);
+  // Serial.println(" deg");
+
+    String toString(unsigned int decimalPlaces = 2U) {
+        return "Rotation X: " + String(this->x, decimalPlaces) + ", Y: " + String(this->y, decimalPlaces) + ", Z: " + String(this->z, decimalPlaces);
+    }
 };
 
 #endif
