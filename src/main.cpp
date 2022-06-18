@@ -7,7 +7,7 @@
 #include "HCSR04/HCSR04UltrasonicSensor.h"
 
 // contains wifi credentials
-#include "wifi.h"
+#include "WiFiCredentials.h"
 
 #define DEFAULT_BAUD_RATE 115200
 
