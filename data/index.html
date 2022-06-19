@@ -41,6 +41,8 @@
                 if (obstacleData[i].distance < 3 || obstacleData[i].distance > 600)
                     obstacleData[i].distance = -1;
 
+            obstacleData.sort((a, b) => a.direction - b.direction);
+
             context.clearRect(0, 0, context.canvas.width, context.canvas.height);
             drawRadarPattern();
             drawRadarObstacles();
@@ -76,8 +78,6 @@
 
             context.font = '16px sans-serif';
             context.strokeText(`${maxDistance} cm`, context.canvas.width / 2 + 10, (context.canvas.height - size) / 2);
-
-            obstacleData.sort((a, b) => a.direction - b.direction);
 
             // separate data points into groups if there is an invalid item in between
             obstacleGroups = [];
