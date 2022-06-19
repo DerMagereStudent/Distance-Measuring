@@ -6,6 +6,7 @@
 
 #include "Mpu6050/Mpu6050Sensor.h"
 #include "HCSR04/HCSR04UltrasonicSensor.h"
+#include "DistanceDataCollection.h"
 
 // contains wifi credentials
 #include "WiFiCredentials.h"
@@ -28,10 +29,9 @@ unsigned int jsonDataInsertIndex = 0;
 Mpu6050Sensor mpu6050Sensor;
 HCSR04UltrasonicSensor hcsr04Sensor;
 
-DynamicJsonDocument jsonDataDoc(3072);
+DistanceDataCollection* distanceDataCollection = new DistanceDataCollection();
 AsyncWebServer server(80);
 
-void writeToJsonDataDoc(float direction, float distance);
 void setupWebServer();
 
 void setup() {
@@ -54,26 +54,8 @@ void loop() {
   if (globalTimestamp - lastDistanceTimestamp > DISTANCE_REFRESH_TIME_MS) {
     Mpu6050GyroData orientation = mpu6050Sensor.getOrientation();
     float distance = hcsr04Sensor.messureDistance();
-    writeToJsonDataDoc(orientation.z, distance);
+    distanceDataCollection->insertData({orientation.z, distance});
     lastDistanceTimestamp = globalTimestamp;
-  }
-}
-
-void writeToJsonDataDoc(float direction, float distance) {
-  if (jsonDataDoc.size() < JSON_DATA_ARRAY_MAX_SIZE) {
-    JsonObject item = jsonDataDoc.createNestedObject();
-    item[JSON_DATA_ARRAY_DIRECTION_KEY] = direction;
-    item[JSON_DATA_ARRAY_DISTANCE_KEY] = distance;
-  } else {
-    JsonObject item = jsonDataDoc[jsonDataInsertIndex];
-    item[JSON_DATA_ARRAY_DIRECTION_KEY] = direction;
-    item[JSON_DATA_ARRAY_DISTANCE_KEY] = distance;
-
-    jsonDataInsertIndex++;
-
-    if (jsonDataInsertIndex == JSON_DATA_ARRAY_MAX_SIZE) {
-      jsonDataInsertIndex = 0;
-    }
   }
 }
 
@@ -96,7 +78,7 @@ void setupWebServer() {
 
   SPIFFS.begin(true);
 
-  // configure cors
+  // configure CORS
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "*");
@@ -104,8 +86,10 @@ void setupWebServer() {
   // configure routes
   server.on("/data", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("application/json");
-    serializeJson(jsonDataDoc, *response);
+    DynamicJsonDocument* doc = distanceDataCollection->toJsonDocument();
+    serializeJson(*doc, *response);
     request->send(response);
+    delete doc;
   });
 
   server.onNotFound([](AsyncWebServerRequest *request) {
