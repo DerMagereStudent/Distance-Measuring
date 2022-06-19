@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distance Measuring</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+</head>
+<body class="bg-dark vw-100 vh-100 m-0 overflow-hidden">
+    <canvas id="main-canvas" style="width: 100%; height: 100%;"></canvas>
+    <script>
+        obstacleData = [];
+
+        let context = document.getElementById("main-canvas").getContext("2d");
+        context.canvas.width  = document.body.offsetWidth;
+        context.canvas.height = document.body.offsetHeight;
+
+        // rotate once to make arc 0° poit upwards
+        //rotateDeg(-90);
+
+        drawRadarPattern();
+        drawRadarObstacles();
+
+        window.onresize = function () {
+            context.canvas.width  = document.body.offsetWidth;
+            context.canvas.height = document.body.offsetHeight;
+
+            console.log(context.canvas)
+
+            context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+            drawRadarPattern();
+            drawRadarObstacles();
+        };
+
+        setInterval(() => getObstacles("http://distance-measuring.local/data", (data) => {
+            obstacleData = data;            
+            
+            // filter invalid data
+            for (let i = 0; i < obstacleData.length; i++)
+                if (obstacleData[i].distance < 3 || obstacleData[i].distance > 600)
+                    obstacleData[i].distance = -1;
+
+            context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+            drawRadarPattern();
+            drawRadarObstacles();
+        }), 500);
+
+        function drawRadarPattern() {
+            let size = Math.min(context.canvas.width, context.canvas.height);
+            size -= 60;
+
+            context.strokeStyle = "white";
+            context.beginPath();
+            context.moveTo((context.canvas.width - size) / 2, context.canvas.height / 2);
+            context.lineTo((context.canvas.width + size) / 2, context.canvas.height / 2);
+            context.moveTo(context.canvas.width / 2, (context.canvas.height - size) / 2);
+            context.lineTo(context.canvas.width / 2, (context.canvas.height + size) / 2);
+            context.stroke();
+
+            size *= 0.9;
+
+            let numberOfArcs = 5;
+            for (let i = 1; i <= numberOfArcs; i++) {
+                context.beginPath();
+                context.arc(context.canvas.width / 2, context.canvas.height / 2, (size / 2) * (i / numberOfArcs), 0, 2 * Math.PI);
+                context.stroke();
+            }
+        }
+
+        function drawRadarObstacles() {
+            let size = Math.min(context.canvas.width, context.canvas.height);
+            size -= 60;
+            let maxDistance = Math.max(...obstacleData.map(d => d.distance));
+            let pixelPerCm = (size / 2) / maxDistance;
+
+            context.font = '16px sans-serif';
+            context.strokeText(`${maxDistance} cm`, context.canvas.width / 2 + 10, (context.canvas.height - size) / 2);
+
+            obstacleData.sort((a, b) => a.direction - b.direction);
+
+            // separate data points into groups if there is an invalid item in between
+            obstacleGroups = [];
+            obstacleGroups.push([]); // first group
+            for (let i = 0; i < obstacleData.length; i++) {
+                // if invalid item --> end group and crete new one
+                if (obstacleData[i].distance < 0) {
+                    // only create a new group if lat one has items. Two consecutive invalid items would produce an empty group otherwise
+                    if (obstacleGroups[obstacleGroups.length - 1].length > 0)
+                        obstacleGroups.push([]);
+
+                    continue;
+                }
+
+                obstacleGroups[obstacleGroups.length - 1].push(obstacleData[i]);
+            }
+
+            // if last data item is invalid it leaves an empty group which has to me removed
+            if (obstacleGroups[obstacleGroups.length - 1].length === 0)
+                obstacleGroups.pop();
+
+            context.fillStyle = "red";
+            for (let i = 0; i < obstacleGroups.length; i++) {
+                // draw first point 
+                context.beginPath();
+                rotateDeg(obstacleGroups[i][0].direction * -1);
+                context.arc(context.canvas.width / 2, context.canvas.height / 2 - obstacleGroups[i][0].distance * pixelPerCm, 5, 0, 2 * Math.PI);
+                rotateDeg(obstacleGroups[i][0].direction);
+                context.fill();
+
+                for (let j = 1; j < obstacleGroups[i].length; j++) {
+                    context.beginPath();
+                    rotateDeg(obstacleGroups[i][j].direction * -1);
+                    context.arc(context.canvas.width / 2, context.canvas.height / 2 - obstacleGroups[i][j].distance * pixelPerCm, 5, 0, 2 * Math.PI);
+                    rotateDeg(obstacleGroups[i][j].direction);
+                    context.fill();
+                }
+            }
+
+            context.strokeStyle = "red";
+            for (let i = 0; i < obstacleGroups.length; i++) {
+                context.beginPath();
+
+                // draw first point 
+                rotateDeg(obstacleGroups[i][0].direction * -1);
+                context.moveTo(context.canvas.width / 2, context.canvas.height / 2 - obstacleGroups[i][0].distance * pixelPerCm);
+                rotateDeg(obstacleGroups[i][0].direction);
+
+                for (let j = 1; j < obstacleGroups[i].length; j++) {
+                    rotateDeg(obstacleGroups[i][j].direction * -1);
+                    context.lineTo(context.canvas.width / 2, context.canvas.height / 2 - obstacleGroups[i][j].distance * pixelPerCm);
+                    rotateDeg(obstacleGroups[i][j].direction);
+                }
+                context.stroke();
+            }
+        }
+
+        function rotateDeg(angle) {
+            let degToRad = 0.017453292519943295;
+
+            context.translate(context.canvas.width / 2, context.canvas.height / 2);
+            context.rotate(angle * degToRad);
+            context.translate(-context.canvas.width / 2, -context.canvas.height / 2);
+        }
+
+        function getObstacles(path, callback) {
+            let xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (this.readyState != 4)
+                    return;
+
+                if (this.status == 200) {
+                    let data = JSON.parse(this.responseText);
+
+                    if (data != null)
+                        callback(data);
+                }
+            };
+
+            xhr.open('GET', path, true);
+            xhr.send();
+        }
+    </script>
+</body>
+</html>

@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
+#include <SPIFFS.h>
 
 #include "Mpu6050/Mpu6050Sensor.h"
 #include "HCSR04/HCSR04UltrasonicSensor.h"
@@ -93,6 +94,8 @@ void setupWebServer() {
   // accessable using http://distance-measuring.local
   MDNS.begin("distance-measuring");
 
+  SPIFFS.begin(true);
+
   // configure cors
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET");
@@ -111,6 +114,8 @@ void setupWebServer() {
     else
       request->send(404);
   });
+
+  server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
 
   server.begin();
 }
