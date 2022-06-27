@@ -16,7 +16,7 @@ public:
     ~HCSR04UltrasonicSensor();
 
     void initialize();
-    float messureDistance();
+    float measureDistance();
 };
 
 #endif

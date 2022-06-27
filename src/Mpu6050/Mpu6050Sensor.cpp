@@ -57,9 +57,13 @@ void Mpu6050Sensor::normalizeOrientation() {
 }
 
 void Mpu6050Sensor::calibrate() {
+    Serial.println("Started calibrating...");
+
     for (int i = 0; i < NECESSARY_CALIBRATIONS; i++) {
         Mpu6050GyroData velocity = this->readCurrentVelocity() * RAD_TO_DEG;
         this->velocityDrift = (this->velocityDrift + velocity) / 2.0f;
         delay(10);
     }
+    
+    Serial.println("Finished calibrating...");
 }
